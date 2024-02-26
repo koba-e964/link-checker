@@ -21,3 +21,13 @@ and the issue cannot be handled with retries."""
 considered_alternatives = [
     "https://www.omgwiki.org/dido/doku.php?id=dido:public:ra:xapend:xapend.b_stds:tech:nist:dss", # as flaky as the original
 ]
+
+[[ignores]]
+url = "https://www.omgwiki.org/dido/doku.php?id=dido:public:ra:xapend:xapend.b_stds:tech:nist:dss"
+codes = [403, 503]
+reason = """
+Always returns 403 or 503.
+"""
+considered_alternatives = [
+    "https://csrc.nist.gov/pubs/fips/186-4/final", # as flaky as the original
+]
