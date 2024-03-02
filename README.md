@@ -4,6 +4,7 @@
 # Prerequisites
 - `git` should be installed
 - the current directory should be managed by `git`
+- Go >= 1.16 is required
 
 # How to install
 ```bash
@@ -52,3 +53,6 @@ considered_alternatives = [
     "https://www.omgwiki.org/dido/doku.php?id=dido:public:ra:xapend:xapend.b_stds:tech:nist:dss", # as flaky as the original
 ]
 ```
+
+# Dependency graph
+![dependency graph](./dependency_graph.png)

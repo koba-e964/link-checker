@@ -4,94 +4,48 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"time"
-
-	"github.com/BurntSushi/toml"
 )
-
-const configFilePath = "./check_links_config.toml"
 
 var httpRegex = regexp.MustCompile("http://[-._%/[:alnum:]?:=+]+")
 var httpsRegex = regexp.MustCompile("https://[-._%/[:alnum:]?:=+]+")
 
-type Config struct {
-	RetryCount int `toml:"retry_count"`
-	// All text files' extensions
-	TextFileExtensions []string `toml:"text_file_extensions"`
-	Ignores            []Ignore `toml:"ignores"`
-}
-
-type Ignore struct {
-	URL                    string   `toml:"url"`
-	Codes                  []int    `toml:"codes"`
-	Reason                 string   `toml:"reason"`
-	ConsideredAlternatives []string `toml:"considered_alternatives"`
-}
-
-func (c *Config) Validate() error {
-	if len(c.TextFileExtensions) == 0 {
-		return errors.New("text_file_extensions cannot be empty")
+// If ignore != nil, ignore.Codes will be used instead of the 2xx criterion.
+// This function modifies seen.
+func checkURLLiveness(url string, retryCount int, ignore *Ignore, seen map[string]struct{}, httpHead HttpAccessor) error {
+	if _, ok := seen[url]; ok {
+		// Already checked: not checking again
+		return nil
 	}
-	for _, ignore := range c.Ignores {
-		if ignore.URL == "" {
-			return errors.New("url cannot be empty")
-		}
-		if len(ignore.Codes) == 0 {
-			return errors.New("codes cannot be empty")
-		}
-		if ignore.Reason == "" {
-			return errors.New("reason cannot be empty")
-		}
-		if len(ignore.ConsideredAlternatives) == 0 {
-			return errors.New("considered_alternatives cannot be empty")
-		}
-	}
-	return nil
-}
-
-func readConfig(configFilePath string) (*Config, error) {
-	var config Config
-	bytes, err := os.ReadFile(configFilePath)
-	if err != nil {
-		return nil, err
-	}
-	toml.Decode(string(bytes), &config)
-	return &config, nil
-}
-
-// if ignore != nil, ignore.Codes will be used instead of the 2xx criterion.
-func checkURLLiveness(url string, retryCount int, ignore *Ignore) error {
+	seen[url] = struct{}{}
 	for i := 0; i < retryCount; i++ {
-		resp, err := http.Head(url)
+		statusCode, err := httpHead(url)
 		if err != nil {
 			return err
 		}
 		if ignore != nil {
 			ok := false
 			for _, code := range ignore.Codes {
-				if resp.StatusCode == code {
+				if statusCode == code {
 					ok = true
 					break
 				}
 			}
 			if ok {
 				// ok, but because ignore != nil, we need a log
-				log.Printf("ok: code = %d, url = %s, ignore = %v\n", resp.StatusCode, url, ignore)
+				log.Printf("ok: code = %d, url = %s, ignore = %v\n", statusCode, url, ignore)
 				return nil
 			}
 		} else {
-			if resp.StatusCode/100 == 2 {
+			if statusCode/100 == 2 {
 				// ok
 				return nil
 			}
 		}
-		log.Printf("code = %d, url = %s, ignore = %v\n", resp.StatusCode, url, ignore)
+		log.Printf("code = %d, url = %s, ignore = %v\n", statusCode, url, ignore)
 		if i == retryCount-1 {
 			return errors.New("invalid status code")
 		} else {
@@ -102,8 +56,9 @@ func checkURLLiveness(url string, retryCount int, ignore *Ignore) error {
 	return nil
 }
 
-func checkFile(path string, retryCount int, ignores map[string]*Ignore) (err error) {
-	content, err := os.ReadFile(path)
+// This function modifies seen.
+func checkFile(path string, retryCount int, ignores map[string]*Ignore, seen map[string]struct{}, readFile FileReader, httpHead HttpAccessor) (err error) {
+	content, err := readFile(path)
 	if err != nil {
 		return err
 	}
@@ -114,9 +69,9 @@ func checkFile(path string, retryCount int, ignores map[string]*Ignore) (err err
 		url := string(v)
 		ignore := ignores[url]
 		log.Printf("%s: HTTP link: url = %s\n", path, url)
-		if thisError := checkURLLiveness(url, retryCount, ignore); thisError != nil {
+		if thisError := checkURLLiveness(url, retryCount, ignore, seen, httpHead); thisError != nil {
 			livenessErrors++
-			log.Printf("%s: not alive: url = %s, thiserror = %v\n", path, url, thisError)
+			log.Printf("%s: not alive: url = %s , thiserror = %v\n", path, url, thisError)
 		}
 	}
 
@@ -124,13 +79,13 @@ func checkFile(path string, retryCount int, ignores map[string]*Ignore) (err err
 	for _, v := range all {
 		url := string(v)
 		ignore := ignores[url]
-		if thisError := checkURLLiveness(url, retryCount, ignore); thisError != nil {
+		if thisError := checkURLLiveness(url, retryCount, ignore, seen, httpHead); thisError != nil {
 			livenessErrors++
-			log.Printf("%s: not alive: url = %s, thiserror = %v\n", path, url, thisError)
+			log.Printf("%s: not alive: url = %s , thiserror = %v\n", path, url, thisError)
 		}
 	}
 	if livenessErrors > 0 {
-		err = fmt.Errorf("liveness check failed: path = %s, prev error = %w", path, err)
+		err = fmt.Errorf("liveness check failed: path = %s , prev error = %w", path, err)
 	}
 
 	return err
@@ -152,15 +107,13 @@ func main() {
 	}
 
 	numErrors := 0
-	cmd := exec.Command("git", "ls-files")
-	output, err := cmd.Output()
+	paths, err := listFiles()
 	if err != nil {
-		log.Printf("git ls-files failed")
-		os.Exit(2)
+		panic(err)
 	}
-	paths := strings.Split(strings.ReplaceAll(string(output), "\r\n", "\n"), "\n")
 
-	for _, path := range paths[:len(paths)-1] { // excludes the last element after the last newline
+	seen := make(map[string]struct{})
+	for _, path := range paths {
 		info, err := os.Stat(path)
 		if err != nil {
 			numErrors++
@@ -179,7 +132,7 @@ func main() {
 			}
 		}
 		if ok {
-			if err := checkFile(path, config.RetryCount, ignores); err != nil {
+			if err := checkFile(path, config.RetryCount, ignores, seen, readFile, httpHead); err != nil {
 				numErrors++
 				log.Printf("%v\n", err)
 			}

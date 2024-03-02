@@ -1,0 +1,9 @@
+digraph dep {
+    node [
+        shape = rect;
+    ]
+    "main.go" -> "config.go"
+    "main.go" -> "file_lister.go"
+    "main.go" -> "file_reader.go"
+    "main.go" -> "http_accessor.go"
+}
