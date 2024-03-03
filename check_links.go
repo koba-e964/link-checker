@@ -10,8 +10,8 @@ import (
 	"time"
 )
 
-var httpRegex = regexp.MustCompile("http://[-._%/[:alnum:]?:=+]+")
-var httpsRegex = regexp.MustCompile("https://[-._%/[:alnum:]?:=+]+")
+var httpRegex = regexp.MustCompile("http://[-._%/[:alnum:]?:=+~@#&]+")
+var httpsRegex = regexp.MustCompile("https://[-._%/[:alnum:]?:=+~@#&]+")
 
 // If ignore != nil, ignore.Codes will be used instead of the 2xx criterion.
 // This function modifies seen.
