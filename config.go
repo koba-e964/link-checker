@@ -18,6 +18,7 @@ type Config struct {
 
 type Ignore struct {
 	URL                    string   `toml:"url"`
+	HasTLSError            bool     `toml:"has_tls_error"`
 	Codes                  []int    `toml:"codes"`
 	Reason                 string   `toml:"reason"`
 	ConsideredAlternatives []string `toml:"considered_alternatives"`
@@ -31,8 +32,8 @@ func (c *Config) Validate() error {
 		if ignore.URL == "" {
 			return errors.New("url cannot be empty")
 		}
-		if len(ignore.Codes) == 0 {
-			return errors.New("codes cannot be empty")
+		if len(ignore.Codes) == 0 && !ignore.HasTLSError {
+			return errors.New("codes cannot be empty when has_tls_error = false")
 		}
 		if ignore.Reason == "" {
 			return errors.New("reason cannot be empty")
