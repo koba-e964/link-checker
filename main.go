@@ -24,7 +24,7 @@ func checkURLLiveness(url string, retryCount int, ignore *Ignore, seen map[strin
 	for i := 0; i < retryCount; i++ {
 		statusCode, err := httpHead(url)
 		if err != nil {
-			if ignore.HasTLSError {
+			if ignore != nil && ignore.HasTLSError {
 				// ok, but because ignore != nil, we need a log
 				log.Printf("ok: url = %s, ignore = %v, err = %v\n", url, ignore, err)
 				return nil
