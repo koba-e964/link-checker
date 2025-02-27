@@ -41,7 +41,7 @@ func checkURLLiveness(url string, retryCount int, ignore *Ignore, seen map[strin
 			}
 			if ok {
 				// ok, but because ignore != nil, we need a log
-				log.Printf("ok: code = %d, url = %s, ignore = %v\n", statusCode, url, ignore)
+				log.Printf("ok: code = %d, url = %s , ignore = %v\n", statusCode, url, ignore)
 				return nil
 			}
 		} else {
