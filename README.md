@@ -7,6 +7,12 @@
 - Go >= 1.16 is required
 
 # How to install
+Via HomeBrew:
+```bash
+brew install koba-e964/tap/link-checker
+```
+
+From source:
 ```bash
 go install github.com/koba-e964/link-checker@latest
 ```
