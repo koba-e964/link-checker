@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/BurntSushi/toml"
@@ -125,7 +126,7 @@ func addLockEntry(lockFilePath string, uri string) error {
 	// Check if URI already exists
 	for _, lock := range lockFile.Locks {
 		if lock.URI == uri {
-			return errors.New("URI already exists in lock file")
+			return fmt.Errorf("URI %s already exists in lock file", uri)
 		}
 	}
 	
