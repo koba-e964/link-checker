@@ -8,6 +8,7 @@ import (
 )
 
 const configFilePath = "./check_links_config.toml"
+const lockFilePath = "./check_links.lock"
 
 type Config struct {
 	RetryCount int `toml:"retry_count"`
@@ -15,6 +16,25 @@ type Config struct {
 	TextFileExtensions []string       `toml:"text_file_extensions"`
 	Ignores            []Ignore       `toml:"ignores"`
 	PrefixIgnores      []PrefixIgnore `toml:"prefix_ignores"`
+}
+
+type LockFile struct {
+	Locks []Lock `toml:"locks"`
+}
+
+type Lock struct {
+	URI  string     `toml:"uri"`
+	Lock LockDetail `toml:"lock"`
+}
+
+type LockDetail struct {
+	Include []string  `toml:"include"`
+	Hash    *LockHash `toml:"hash,omitempty"`
+}
+
+type LockHash struct {
+	SHA256 string `toml:"sha256,omitempty"`
+	SHA384 string `toml:"sha384,omitempty"`
 }
 
 type Ignore struct {
@@ -67,4 +87,56 @@ func readConfig(configFilePath string) (*Config, error) {
 	}
 	toml.Decode(string(bytes), &config)
 	return &config, nil
+}
+
+func readLockFile(lockFilePath string) (*LockFile, error) {
+	var lockFile LockFile
+	bytes, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		// If lock file doesn't exist, return empty lockfile
+		if os.IsNotExist(err) {
+			return &LockFile{Locks: []Lock{}}, nil
+		}
+		return nil, err
+	}
+	_, err = toml.Decode(string(bytes), &lockFile)
+	if err != nil {
+		return nil, err
+	}
+	return &lockFile, nil
+}
+
+func writeLockFile(lockFilePath string, lockFile *LockFile) error {
+	f, err := os.Create(lockFilePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	encoder := toml.NewEncoder(f)
+	return encoder.Encode(lockFile)
+}
+
+func addLockEntry(lockFilePath string, uri string) error {
+	lockFile, err := readLockFile(lockFilePath)
+	if err != nil {
+		return err
+	}
+	
+	// Check if URI already exists
+	for _, lock := range lockFile.Locks {
+		if lock.URI == uri {
+			return errors.New("URI already exists in lock file")
+		}
+	}
+	
+	// Add new lock entry with empty include array
+	newLock := Lock{
+		URI: uri,
+		Lock: LockDetail{
+			Include: []string{},
+		},
+	}
+	lockFile.Locks = append(lockFile.Locks, newLock)
+	
+	return writeLockFile(lockFilePath, lockFile)
 }

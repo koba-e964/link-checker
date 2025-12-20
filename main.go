@@ -132,6 +132,17 @@ func checkFile(path string, retryCount int, ignores map[string]*Ignore, prefixIg
 }
 
 func main() {
+	// Check for add subcommand
+	if len(os.Args) >= 3 && os.Args[1] == "add" {
+		url := os.Args[2]
+		if err := addLockEntry(lockFilePath, url); err != nil {
+			log.Printf("Error adding lock entry: %v\n", err)
+			os.Exit(1)
+		}
+		log.Printf("Successfully added %s to lock file\n", url)
+		return
+	}
+
 	config, err := readConfig(configFilePath)
 	if err != nil {
 		panic(err)
