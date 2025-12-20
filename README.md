@@ -23,6 +23,11 @@ In the target directory, run:
 link-checker
 ```
 
+To add a URL to the lock file:
+```bash
+link-checker add <URL>
+```
+
 # Configuration
 The configuration file is always placed in `check_links_config.toml` in the project root.
 
@@ -67,6 +72,44 @@ You can also ignore all URLs that start with a specific prefix:
 prefix = "https://x.com/"
 reason = "x.com doesn't seem to allow scraping"
 ```
+
+You can also ignore all URLs that start with a specific prefix:
+
+```toml
+[[prefix_ignores]]
+prefix = "https://x.com/"
+reason = "x.com doesn't seem to allow scraping"
+```
+
+## Lock Files
+
+You can create custom rules for specific links using lock files. The lock file is stored in `check_links.lock` in the project root.
+
+To add a URL to the lock file:
+```bash
+link-checker add https://example.com
+```
+
+You can then manually edit `check_links.lock` to add custom validation rules:
+
+```toml
+[[locks]]
+  uri = "https://koba-e964.github.io/index.html"
+  [locks.lock]
+    include = ["こばのページ"]
+
+[[locks]]
+  uri = "https://koba-e964.github.io/latin/202310"
+  [locks.lock]
+    include = ["日記"]
+    [locks.lock.hash]
+      sha256 = "e68016661d8efedef621c558ee1682a5c31f386ac5e950e4555b0e8cd9f8b421"
+      sha384 = "3ac6946a16887eae2ba5b82584775a3c955efd6399cd90f84f2708608a47192561b2a923df1f81b75e47a6deca10ff41"
+```
+
+The lock file supports:
+- `include`: An array of strings that must be present in the response
+- `hash`: Optional hash validation with `sha256` and `sha384` fields
 
 # Dependency graph
 ![dependency graph](./dependency_graph.png)
