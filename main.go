@@ -12,11 +12,10 @@ import (
 
 var httpRegex = regexp.MustCompile("http://[-._%/[:alnum:]?:=+~@#&]+")
 var httpsRegex = regexp.MustCompile("https://[-._%/[:alnum:]?:=+~@#&]+")
+var titleRegex = regexp.MustCompile(`:title(=[^\s]*)?$`)
 
 // stripTitleSuffix removes :title or :title=xxx suffix from URLs (Hatena notation)
 func stripTitleSuffix(url string) string {
-	// Match :title or :title=...
-	titleRegex := regexp.MustCompile(`:title(=.*)?$`)
 	return titleRegex.ReplaceAllString(url, "")
 }
 

@@ -13,9 +13,9 @@ func TestStripTitleSuffix(t *testing.T) {
 		// Basic :title suffix
 		{"https://example.com:title", "https://example.com"},
 		{"http://example.com:title", "http://example.com"},
-		// :title=xxx suffix
+		// :title=xxx suffix (xxx without spaces, as regex won't match spaces)
 		{"https://example.com:title=", "https://example.com"},
-		{"https://example.com:title=Page Title", "https://example.com"},
+		{"https://example.com:title=PageTitle", "https://example.com"},
 		// URLs without :title suffix should be unchanged
 		{"https://example.com", "https://example.com"},
 		{"https://example.com:8080", "https://example.com:8080"},
