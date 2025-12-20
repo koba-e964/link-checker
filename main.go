@@ -12,6 +12,12 @@ import (
 
 var httpRegex = regexp.MustCompile("http://[-._%/[:alnum:]?:=+~@#&]+")
 var httpsRegex = regexp.MustCompile("https://[-._%/[:alnum:]?:=+~@#&]+")
+var titleRegex = regexp.MustCompile(`:title(=[^\s]*)?$`)
+
+// stripTitleSuffix removes :title or :title=xxx suffix from URLs (Hatena notation)
+func stripTitleSuffix(url string) string {
+	return titleRegex.ReplaceAllString(url, "")
+}
 
 // If ignore != nil, ignore.Codes will be used instead of the 2xx criterion.
 // This function modifies seen.
@@ -72,6 +78,7 @@ func checkFile(path string, retryCount int, ignores map[string]*Ignore, seen map
 	var livenessErrors uint64 = 0
 	for _, v := range all {
 		url := string(v)
+		url = stripTitleSuffix(url)
 		ignore := ignores[url]
 		log.Printf("%s: HTTP link: url = %s\n", path, url)
 		if thisError := checkURLLiveness(url, retryCount, ignore, seen, httpHead); thisError != nil {
@@ -83,6 +90,7 @@ func checkFile(path string, retryCount int, ignores map[string]*Ignore, seen map
 	all = httpsRegex.FindAll(content, -1)
 	for _, v := range all {
 		url := string(v)
+		url = stripTitleSuffix(url)
 		ignore := ignores[url]
 		if thisError := checkURLLiveness(url, retryCount, ignore, seen, httpHead); thisError != nil {
 			livenessErrors++
