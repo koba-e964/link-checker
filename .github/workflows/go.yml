@@ -32,10 +32,9 @@ jobs:
         run: go test -v ./...
 
       - name: Lint (staticcheck)
-        uses: dominikh/staticcheck-action@v1.3.0
-        with:
-          install-go: true
-          version: "2023.1.6"
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@v0.6.1
+          "$(go env GOPATH)/bin/staticcheck" ./...
 
   build-release:
     runs-on: ubuntu-latest
