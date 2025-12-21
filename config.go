@@ -1,8 +1,12 @@
 package main
 
 import (
+	"crypto/sha512"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 
 	"github.com/BurntSushi/toml"
@@ -29,13 +33,8 @@ type Lock struct {
 }
 
 type LockDetail struct {
-	Include []string  `toml:"include"`
-	Hash    *LockHash `toml:"hash,omitempty"`
-}
-
-type LockHash struct {
-	SHA256 string `toml:"sha256,omitempty"`
-	SHA384 string `toml:"sha384,omitempty"`
+	Include []string `toml:"include,omitempty"`
+	SHA384  string   `toml:"sha384,omitempty"`
 }
 
 type Ignore struct {
@@ -117,6 +116,35 @@ func writeLockFile(lockFilePath string, lockFile *LockFile) error {
 	return encoder.Encode(lockFile)
 }
 
+// fetchURLAndComputeSHA384 fetches the content of a URL and computes its SHA384 hash
+func fetchURLAndComputeSHA384(url string) (string, error) {
+	client := http.Client{}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("User-Agent", "link-checker from https://github.com/koba-e964/link-checker")
+	
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("HTTP request failed with status code: %d", resp.StatusCode)
+	}
+	
+	// Compute SHA384 hash
+	hasher := sha512.New384()
+	if _, err := io.Copy(hasher, resp.Body); err != nil {
+		return "", err
+	}
+	
+	hashBytes := hasher.Sum(nil)
+	return hex.EncodeToString(hashBytes), nil
+}
+
 func addLockEntry(lockFilePath string, uri string) error {
 	lockFile, err := readLockFile(lockFilePath)
 	if err != nil {
@@ -130,11 +158,17 @@ func addLockEntry(lockFilePath string, uri string) error {
 		}
 	}
 	
-	// Add new lock entry with empty include array
+	// Fetch URL and compute SHA384 hash
+	sha384Hash, err := fetchURLAndComputeSHA384(uri)
+	if err != nil {
+		return fmt.Errorf("failed to fetch URL and compute hash: %w", err)
+	}
+	
+	// Add new lock entry with computed hash
 	newLock := Lock{
 		URI: uri,
 		Lock: LockDetail{
-			Include: []string{},
+			SHA384: sha384Hash,
 		},
 	}
 	lockFile.Locks = append(lockFile.Locks, newLock)

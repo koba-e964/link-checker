@@ -85,12 +85,20 @@ reason = "x.com doesn't seem to allow scraping"
 
 You can create custom rules for specific links using lock files. The lock file is stored in `check_links.lock` in the project root.
 
-To add a URL to the lock file:
+To add a URL to the lock file (automatically fetches and computes SHA384 hash):
 ```bash
 link-checker add https://example.com
 ```
 
-You can then manually edit `check_links.lock` to add custom validation rules:
+This will create an entry like:
+```toml
+[[locks]]
+  uri = "https://example.com"
+  [locks.lock]
+    sha384 = "6ca762de9d907c3ec35042bc9a6ed4b5e7096ab89f61997fd277f41549866e7817f1d1daee89fcb8edd938d11bb717e2"
+```
+
+You can manually edit `check_links.lock` to add custom validation rules:
 
 ```toml
 [[locks]]
@@ -102,14 +110,12 @@ You can then manually edit `check_links.lock` to add custom validation rules:
   uri = "https://koba-e964.github.io/latin/202310"
   [locks.lock]
     include = ["日記"]
-    [locks.lock.hash]
-      sha256 = "e68016661d8efedef621c558ee1682a5c31f386ac5e950e4555b0e8cd9f8b421"
-      sha384 = "3ac6946a16887eae2ba5b82584775a3c955efd6399cd90f84f2708608a47192561b2a923df1f81b75e47a6deca10ff41"
+    sha384 = "3ac6946a16887eae2ba5b82584775a3c955efd6399cd90f84f2708608a47192561b2a923df1f81b75e47a6deca10ff41"
 ```
 
 The lock file supports:
 - `include`: An array of strings that must be present in the response
-- `hash`: Optional hash validation with `sha256` and `sha384` fields
+- `sha384`: Optional SHA384 hash for content validation
 
 # Dependency graph
 ![dependency graph](./dependency_graph.png)
