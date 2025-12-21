@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/BurntSushi/toml"
 )
@@ -118,7 +119,9 @@ func writeLockFile(lockFilePath string, lockFile *LockFile) error {
 
 // fetchURLAndComputeSHA384 fetches the content of a URL and computes its SHA384 hash
 func fetchURLAndComputeSHA384(url string) (string, error) {
-	client := http.Client{}
+	client := http.Client{
+		Timeout: 30 * time.Second,
+	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", err
@@ -135,9 +138,12 @@ func fetchURLAndComputeSHA384(url string) (string, error) {
 		return "", fmt.Errorf("HTTP request failed with status code: %d", resp.StatusCode)
 	}
 	
+	// Limit response body to 100MB to prevent memory exhaustion
+	limitedBody := io.LimitReader(resp.Body, 100*1024*1024)
+	
 	// Compute SHA384 hash
 	hasher := sha512.New384()
-	if _, err := io.Copy(hasher, resp.Body); err != nil {
+	if _, err := io.Copy(hasher, limitedBody); err != nil {
 		return "", err
 	}
 	
