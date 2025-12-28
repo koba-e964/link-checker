@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -21,9 +22,9 @@ func stripTitleSuffix(url string) string {
 
 // shouldIgnoreByPrefix checks if a URL should be ignored based on prefix rules
 func shouldIgnoreByPrefix(url string, prefixIgnores []PrefixIgnore) *PrefixIgnore {
-	for _, prefixIgnore := range prefixIgnores {
-		if len(url) >= len(prefixIgnore.Prefix) && url[:len(prefixIgnore.Prefix)] == prefixIgnore.Prefix {
-			return &prefixIgnore
+	for i := range prefixIgnores {
+		if strings.HasPrefix(url, prefixIgnores[i].Prefix) {
+			return &prefixIgnores[i]
 		}
 	}
 	return nil
