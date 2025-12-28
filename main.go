@@ -19,6 +19,16 @@ func stripTitleSuffix(url string) string {
 	return titleRegex.ReplaceAllString(url, "")
 }
 
+// shouldIgnoreByPrefix checks if a URL should be ignored based on prefix rules
+func shouldIgnoreByPrefix(url string, prefixIgnores []PrefixIgnore) *PrefixIgnore {
+	for _, prefixIgnore := range prefixIgnores {
+		if len(url) >= len(prefixIgnore.Prefix) && url[:len(prefixIgnore.Prefix)] == prefixIgnore.Prefix {
+			return &prefixIgnore
+		}
+	}
+	return nil
+}
+
 // If ignore != nil, ignore.Codes will be used instead of the 2xx criterion.
 // This function modifies seen.
 func checkURLLiveness(url string, retryCount int, ignore *Ignore, seen map[string]struct{}, httpHead HttpAccessor) error {
@@ -68,7 +78,7 @@ func checkURLLiveness(url string, retryCount int, ignore *Ignore, seen map[strin
 }
 
 // This function modifies seen.
-func checkFile(path string, retryCount int, ignores map[string]*Ignore, seen map[string]struct{}, readFile FileReader, httpHead HttpAccessor) (err error) {
+func checkFile(path string, retryCount int, ignores map[string]*Ignore, prefixIgnores []PrefixIgnore, seen map[string]struct{}, readFile FileReader, httpHead HttpAccessor) (err error) {
 	content, err := readFile(path)
 	if err != nil {
 		return err
@@ -79,6 +89,14 @@ func checkFile(path string, retryCount int, ignores map[string]*Ignore, seen map
 	for _, v := range all {
 		url := string(v)
 		url = stripTitleSuffix(url)
+		
+		// Check if URL matches any prefix ignore rules
+		if prefixIgnore := shouldIgnoreByPrefix(url, prefixIgnores); prefixIgnore != nil {
+			log.Printf("%s: HTTP link ignored by prefix: url = %s, prefix = %s, reason = %s\n", 
+				path, url, prefixIgnore.Prefix, prefixIgnore.Reason)
+			continue
+		}
+		
 		ignore := ignores[url]
 		log.Printf("%s: HTTP link: url = %s\n", path, url)
 		if thisError := checkURLLiveness(url, retryCount, ignore, seen, httpHead); thisError != nil {
@@ -91,6 +109,14 @@ func checkFile(path string, retryCount int, ignores map[string]*Ignore, seen map
 	for _, v := range all {
 		url := string(v)
 		url = stripTitleSuffix(url)
+		
+		// Check if URL matches any prefix ignore rules
+		if prefixIgnore := shouldIgnoreByPrefix(url, prefixIgnores); prefixIgnore != nil {
+			log.Printf("%s: HTTPS link ignored by prefix: url = %s, prefix = %s, reason = %s\n", 
+				path, url, prefixIgnore.Prefix, prefixIgnore.Reason)
+			continue
+		}
+		
 		ignore := ignores[url]
 		if thisError := checkURLLiveness(url, retryCount, ignore, seen, httpHead); thisError != nil {
 			livenessErrors++
@@ -145,7 +171,7 @@ func main() {
 			}
 		}
 		if ok {
-			if err := checkFile(path, config.RetryCount, ignores, seen, readFile, httpHead); err != nil {
+			if err := checkFile(path, config.RetryCount, ignores, config.PrefixIgnores, seen, readFile, httpHead); err != nil {
 				numErrors++
 				log.Printf("%v\n", err)
 			}

@@ -64,15 +64,16 @@ func TestCheckFile(t *testing.T) {
 	}
 	seen := map[string]struct{}{}
 	ignores := map[string]*Ignore{}
+	prefixIgnores := []PrefixIgnore{}
 	readFile := getReadFileMock([]readFileEntry{
 		{"dummy", "http://dummy-200\nhttps://dummy-404\n"},
 		{"dummy2", "http://dummy-200\nhttps://dummy-404\n"},
 	})
-	err := checkFile("dummy", 1, ignores, seen, readFile, httpHead)
+	err := checkFile("dummy", 1, ignores, prefixIgnores, seen, readFile, httpHead)
 	if err != nil {
 		t.Errorf("err = %v, want nil", err)
 	}
-	err = checkFile("dummy2", 1, ignores, seen, readFile, httpHead)
+	err = checkFile("dummy2", 1, ignores, prefixIgnores, seen, readFile, httpHead)
 	if err != nil {
 		t.Errorf("err = %v, want nil", err)
 	}
@@ -94,10 +95,11 @@ func TestCheckFileWithTitleSuffix(t *testing.T) {
 	}
 	seen := map[string]struct{}{}
 	ignores := map[string]*Ignore{}
+	prefixIgnores := []PrefixIgnore{}
 	readFile := getReadFileMock([]readFileEntry{
 		{"dummy", "https://www.ibjapan.jp/information/2023/09/22.html:title\nhttp://example.com:title=Page Title\n"},
 	})
-	err := checkFile("dummy", 1, ignores, seen, readFile, httpHead)
+	err := checkFile("dummy", 1, ignores, prefixIgnores, seen, readFile, httpHead)
 	if err != nil {
 		t.Errorf("err = %v, want nil", err)
 	}
@@ -108,5 +110,61 @@ func TestCheckFileWithTitleSuffix(t *testing.T) {
 	}
 	if !reflect.DeepEqual(accessed, expectedAccessed) {
 		t.Errorf("accessed = %v, want %v", accessed, expectedAccessed)
+	}
+}
+
+func TestCheckFileWithPrefixIgnore(t *testing.T) {
+	accessed := []string{}
+	var httpHead HttpAccessor = func(url string) (int, error) {
+		accessed = append(accessed, url)
+		return 200, nil
+	}
+	seen := map[string]struct{}{}
+	ignores := map[string]*Ignore{}
+	prefixIgnores := []PrefixIgnore{
+		{Prefix: "https://x.com/", Reason: "X.com links are ignored"},
+		{Prefix: "https://twitter.com/", Reason: "Twitter links are ignored"},
+	}
+	readFile := getReadFileMock([]readFileEntry{
+		{"dummy", "https://x.com/user123\nhttp://example.com\nhttps://twitter.com/status/456\nhttps://github.com/koba-e964\n"},
+	})
+	err := checkFile("dummy", 1, ignores, prefixIgnores, seen, readFile, httpHead)
+	if err != nil {
+		t.Errorf("err = %v, want nil", err)
+	}
+	expectedAccessed := []string{
+		// Only non-ignored URLs should be accessed
+		"http://example.com",
+		"https://github.com/koba-e964",
+	}
+	if !reflect.DeepEqual(accessed, expectedAccessed) {
+		t.Errorf("accessed = %v, want %v", accessed, expectedAccessed)
+	}
+}
+
+func TestShouldIgnoreByPrefix(t *testing.T) {
+	prefixIgnores := []PrefixIgnore{
+		{Prefix: "https://x.com/", Reason: "X.com links are ignored"},
+		{Prefix: "https://twitter.com/", Reason: "Twitter links are ignored"},
+	}
+
+	tests := []struct {
+		url      string
+		expected bool
+	}{
+		{"https://x.com/user123", true},
+		{"https://x.com/", true},
+		{"https://twitter.com/status/456", true},
+		{"https://github.com/koba-e964", false},
+		{"http://example.com", false},
+		{"https://x.co/short", false}, // Should not match
+	}
+
+	for _, test := range tests {
+		result := shouldIgnoreByPrefix(test.url, prefixIgnores)
+		matched := result != nil
+		if matched != test.expected {
+			t.Errorf("shouldIgnoreByPrefix(%q) matched=%v, want %v", test.url, matched, test.expected)
+		}
 	}
 }

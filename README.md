@@ -60,5 +60,17 @@ considered_alternatives = [
 ]
 ```
 
+You can also ignore all URLs that start with a specific prefix:
+
+```toml
+[[prefix_ignores]]
+prefix = "https://x.com/"
+reason = "X.com links are intentionally ignored"
+
+[[prefix_ignores]]
+prefix = "https://internal.company.com/"
+reason = "Internal company links are not accessible from CI"
+```
+
 # Dependency graph
 ![dependency graph](./dependency_graph.png)

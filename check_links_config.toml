@@ -21,3 +21,8 @@ Always returns 200, 403 or 503.
 considered_alternatives = [
     "https://csrc.nist.gov/pubs/fips/186-4/final", # as flaky as the original
 ]
+
+# Example of prefix-based ignores
+# [[prefix_ignores]]
+# prefix = "https://x.com/"
+# reason = "X.com links are intentionally ignored"
