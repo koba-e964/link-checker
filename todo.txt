@@ -1,0 +1,3 @@
+variable hash methods
+Updating old hashes
+Add option -f

@@ -139,12 +139,18 @@ func main() {
 			log.Printf("Usage: link-checker add <URL>\n")
 			os.Exit(1)
 		}
-		url := os.Args[2]
-		if err := addLockEntry(lockFilePath, url); err != nil {
-			log.Printf("Error adding lock entry: %v\n", err)
+		hasError := false
+		for _, url := range os.Args[2:] {
+			if err := addLockEntry(lockFilePath, url); err != nil {
+				log.Printf("Error adding lock entry: %v\n", err)
+				hasError = true
+			} else {
+				log.Printf("Successfully added %s to lock file\n", url)
+			}
+		}
+		if hasError {
 			os.Exit(1)
 		}
-		log.Printf("Successfully added %s to lock file\n", url)
 		return
 	}
 
