@@ -181,9 +181,9 @@ func main() {
 	// Check lock file if it exists
 	lockFile, err := readLockFile(lockFilePath)
 	if err != nil {
-		panic(err)
-	}
-	if len(lockFile.Locks) > 0 {
+		// Lock file is optional, so just log a warning and continue
+		log.Printf("Warning: failed to read lock file: %v\n", err)
+	} else if len(lockFile.Locks) > 0 {
 		log.Printf("Verifying %d lock entries...\n", len(lockFile.Locks))
 		lockErrors := verifyLockFile(lockFile)
 		if len(lockErrors) > 0 {
