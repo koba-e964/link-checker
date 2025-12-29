@@ -42,7 +42,7 @@ hash_of_content = "def456"
 	}
 
 	if len(lockFile.Locks) != 1 {
-		t.Fatalf("readLockFile() returned %d locks, want 2", len(lockFile.Locks))
+		t.Fatalf("readLockFile() returned %d locks, want 1", len(lockFile.Locks))
 	}
 
 	// Check first lock
