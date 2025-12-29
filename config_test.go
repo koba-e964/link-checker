@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -188,7 +189,26 @@ func TestVerifyLockFile(t *testing.T) {
 		t.Errorf("verifyLockFile() with empty lock file returned %d errors, want 0", len(errors))
 	}
 
-	// Test with lock file containing invalid entries
+	// Test with unsupported hash version (no network required)
+	lockFileWithBadVersion := &LockFile{
+		Locks: []Lock{
+			{
+				URI:           "https://example.com",
+				HashVersion:   "h2",
+				HashOfContent: "some_hash",
+			},
+		},
+	}
+
+	errors = verifyLockFile(lockFileWithBadVersion)
+	if len(errors) != 1 {
+		t.Errorf("verifyLockFile() with unsupported hash version returned %d errors, want 1", len(errors))
+	}
+	if len(errors) > 0 && !strings.Contains(errors[0].Error(), "unsupported hash version") {
+		t.Errorf("verifyLockFile() error message = %v, want to contain 'unsupported hash version'", errors[0])
+	}
+
+	// Test with lock file containing invalid entries (requires network)
 	lockFileWithBadEntries := &LockFile{
 		Locks: []Lock{
 			{
