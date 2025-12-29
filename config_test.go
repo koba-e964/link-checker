@@ -90,11 +90,6 @@ func TestWriteLockFile(t *testing.T) {
 }
 
 func TestAddLockEntry(t *testing.T) {
-	// This test requires network access, so we skip it in CI
-	if os.Getenv("CI") != "" {
-		t.Skip("Skipping test that requires network access in CI")
-	}
-
 	tmpDir := t.TempDir()
 	lockPath := filepath.Join(tmpDir, "check_links.lock")
 
@@ -131,11 +126,6 @@ func TestAddLockEntry(t *testing.T) {
 }
 
 func TestVerifyLockEntry(t *testing.T) {
-	// This test requires network access, so we skip it in CI
-	if os.Getenv("CI") != "" {
-		t.Skip("Skipping test that requires network access in CI")
-	}
-
 	// Test with a valid lock entry for example.com
 	// First fetch and compute the hash
 	hash, err := fetchURLAndComputeSHA384("https://example.com")
@@ -222,11 +212,6 @@ func TestVerifyLockFile(t *testing.T) {
 				HashOfContent: "another_bad_hash",
 			},
 		},
-	}
-
-	// This test requires network access, so we skip detailed verification in CI
-	if os.Getenv("CI") != "" {
-		t.Skip("Skipping test that requires network access in CI")
 	}
 
 	errors = verifyLockFile(lockFileWithBadEntries)
