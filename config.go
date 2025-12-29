@@ -156,6 +156,37 @@ func fetchURLAndComputeSHA384(url string) (string, error) {
 	return hex.EncodeToString(hashBytes), nil
 }
 
+// verifyLockEntry verifies that a lock entry's content hash matches the current content
+func verifyLockEntry(lock Lock) error {
+	if lock.HashVersion != "h1" {
+		return fmt.Errorf("unsupported hash version: %s", lock.HashVersion)
+	}
+
+	// Fetch current content and compute hash
+	currentHash, err := fetchURLAndComputeSHA384(lock.URI)
+	if err != nil {
+		return fmt.Errorf("failed to fetch and hash URL %s: %w", lock.URI, err)
+	}
+
+	// Compare hashes
+	if currentHash != lock.HashOfContent {
+		return fmt.Errorf("hash mismatch for URL %s: expected %s, got %s", lock.URI, lock.HashOfContent, currentHash)
+	}
+
+	return nil
+}
+
+// verifyLockFile verifies all entries in the lock file
+func verifyLockFile(lockFile *LockFile) []error {
+	var errors []error
+	for _, lock := range lockFile.Locks {
+		if err := verifyLockEntry(lock); err != nil {
+			errors = append(errors, err)
+		}
+	}
+	return errors
+}
+
 func addLockEntry(lockFilePath string, uri string, allowUpdate bool) error {
 	lockFile, err := readLockFile(lockFilePath)
 	if err != nil {

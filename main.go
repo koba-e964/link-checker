@@ -178,6 +178,27 @@ func main() {
 		ignores[ignore.URL] = &ignoreCopied
 	}
 
+	// Check lock file if it exists
+	lockFile, err := readLockFile(lockFilePath)
+	if err != nil {
+		// Lock file is optional, so just log a warning and continue
+		log.Printf("Warning: failed to read lock file: %v\n", err)
+	} else {
+		// Lock file was read successfully, verify entries if any exist
+		if len(lockFile.Locks) > 0 {
+			log.Printf("Verifying %d lock entries...\n", len(lockFile.Locks))
+			lockErrors := verifyLockFile(lockFile)
+			if len(lockErrors) > 0 {
+				log.Printf("Lock file verification failed with %d errors:\n", len(lockErrors))
+				for _, err := range lockErrors {
+					log.Printf("  %v\n", err)
+				}
+				os.Exit(1)
+			}
+			log.Printf("All lock entries verified successfully\n")
+		}
+	}
+
 	numErrors := 0
 	paths, err := listFiles()
 	if err != nil {
