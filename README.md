@@ -60,5 +60,13 @@ considered_alternatives = [
 ]
 ```
 
+You can also ignore all URLs that start with a specific prefix:
+
+```toml
+[[prefix_ignores]]
+prefix = "https://x.com/"
+reason = "x.com doesn't seem to allow scraping"
+```
+
 # Dependency graph
 ![dependency graph](./dependency_graph.png)

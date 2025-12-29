@@ -21,3 +21,7 @@ Always returns 200, 403 or 503.
 considered_alternatives = [
     "https://csrc.nist.gov/pubs/fips/186-4/final", # as flaky as the original
 ]
+
+[[prefix_ignores]]
+prefix = "https://x.com/"
+reason = "x.com doesn't seem to allow scraping"

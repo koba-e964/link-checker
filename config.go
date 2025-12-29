@@ -12,8 +12,9 @@ const configFilePath = "./check_links_config.toml"
 type Config struct {
 	RetryCount int `toml:"retry_count"`
 	// All text files' extensions
-	TextFileExtensions []string `toml:"text_file_extensions"`
-	Ignores            []Ignore `toml:"ignores"`
+	TextFileExtensions []string       `toml:"text_file_extensions"`
+	Ignores            []Ignore       `toml:"ignores"`
+	PrefixIgnores      []PrefixIgnore `toml:"prefix_ignores"`
 }
 
 type Ignore struct {
@@ -22,6 +23,11 @@ type Ignore struct {
 	Codes                  []int    `toml:"codes"`
 	Reason                 string   `toml:"reason"`
 	ConsideredAlternatives []string `toml:"considered_alternatives"`
+}
+
+type PrefixIgnore struct {
+	Prefix string `toml:"prefix"`
+	Reason string `toml:"reason"`
 }
 
 func (c *Config) Validate() error {
@@ -40,6 +46,14 @@ func (c *Config) Validate() error {
 		}
 		if len(ignore.ConsideredAlternatives) == 0 {
 			return errors.New("considered_alternatives cannot be empty")
+		}
+	}
+	for _, prefixIgnore := range c.PrefixIgnores {
+		if prefixIgnore.Prefix == "" {
+			return errors.New("prefix cannot be empty")
+		}
+		if prefixIgnore.Reason == "" {
+			return errors.New("reason cannot be empty for prefix_ignores")
 		}
 	}
 	return nil
