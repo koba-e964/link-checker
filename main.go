@@ -132,6 +132,38 @@ func checkFile(path string, retryCount int, ignores map[string]*Ignore, prefixIg
 }
 
 func main() {
+	// Check for add subcommand
+	if len(os.Args) >= 2 && os.Args[1] == "add" {
+		hasError := false
+		// parse options
+		force := false
+		urls := []string{}
+		for _, arg := range os.Args[2:] {
+			if arg == "--force" || arg == "-f" {
+				force = true
+			} else {
+				urls = append(urls, arg)
+			}
+		}
+		if len(urls) == 0 {
+			log.Printf("Error: URL argument is required\n")
+			log.Printf("Usage: link-checker add [--force|-f] <URL>\n")
+			os.Exit(1)
+		}
+		for _, url := range urls {
+			if err := addLockEntry(lockFilePath, url, force); err != nil {
+				log.Printf("Error adding lock entry: %v\n", err)
+				hasError = true
+			} else {
+				log.Printf("Successfully added %s to lock file\n", url)
+			}
+		}
+		if hasError {
+			os.Exit(1)
+		}
+		return
+	}
+
 	config, err := readConfig(configFilePath)
 	if err != nil {
 		panic(err)
