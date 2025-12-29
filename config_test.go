@@ -128,3 +128,89 @@ func TestAddLockEntry(t *testing.T) {
 		t.Error("addLockEntry() with duplicate should return error")
 	}
 }
+
+func TestVerifyLockEntry(t *testing.T) {
+	// This test requires network access, so we skip it in CI
+	if os.Getenv("CI") != "" {
+		t.Skip("Skipping test that requires network access in CI")
+	}
+
+	// Test with a valid lock entry for example.com
+	// First fetch and compute the hash
+	hash, err := fetchURLAndComputeSHA384("https://example.com")
+	if err != nil {
+		t.Fatalf("Failed to fetch and hash URL: %v", err)
+	}
+
+	// Create a lock entry with the correct hash
+	lock := Lock{
+		URI:           "https://example.com",
+		HashVersion:   "h1",
+		HashOfContent: hash,
+	}
+
+	// Verify should succeed
+	err = verifyLockEntry(lock)
+	if err != nil {
+		t.Errorf("verifyLockEntry() error = %v, want nil", err)
+	}
+
+	// Test with incorrect hash
+	lockBadHash := Lock{
+		URI:           "https://example.com",
+		HashVersion:   "h1",
+		HashOfContent: "incorrect_hash",
+	}
+
+	err = verifyLockEntry(lockBadHash)
+	if err == nil {
+		t.Error("verifyLockEntry() with bad hash should return error")
+	}
+
+	// Test with unsupported hash version
+	lockBadVersion := Lock{
+		URI:           "https://example.com",
+		HashVersion:   "h2",
+		HashOfContent: hash,
+	}
+
+	err = verifyLockEntry(lockBadVersion)
+	if err == nil {
+		t.Error("verifyLockEntry() with unsupported hash version should return error")
+	}
+}
+
+func TestVerifyLockFile(t *testing.T) {
+	// Test with empty lock file
+	lockFile := &LockFile{Locks: []Lock{}}
+	errors := verifyLockFile(lockFile)
+	if len(errors) != 0 {
+		t.Errorf("verifyLockFile() with empty lock file returned %d errors, want 0", len(errors))
+	}
+
+	// Test with lock file containing invalid entries
+	lockFileWithBadEntries := &LockFile{
+		Locks: []Lock{
+			{
+				URI:           "https://example.com",
+				HashVersion:   "h1",
+				HashOfContent: "bad_hash",
+			},
+			{
+				URI:           "https://example.org",
+				HashVersion:   "h1",
+				HashOfContent: "another_bad_hash",
+			},
+		},
+	}
+
+	// This test requires network access, so we skip detailed verification in CI
+	if os.Getenv("CI") != "" {
+		t.Skip("Skipping test that requires network access in CI")
+	}
+
+	errors = verifyLockFile(lockFileWithBadEntries)
+	if len(errors) != 2 {
+		t.Errorf("verifyLockFile() with 2 bad entries returned %d errors, want 2", len(errors))
+	}
+}
