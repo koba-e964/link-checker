@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"slices"
@@ -138,7 +139,7 @@ func fetchURLAndComputeSHA384(url string) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("HTTP request failed with status code: %d", resp.StatusCode)
+		return "", fmt.Errorf("HTTP request to %s failed with status code: %d", url, resp.StatusCode)
 	}
 
 	// Limit response body to 100MB to prevent memory exhaustion
@@ -155,12 +156,12 @@ func fetchURLAndComputeSHA384(url string) (string, error) {
 	return hex.EncodeToString(hashBytes), nil
 }
 
-func addLockEntry(lockFilePath string, uri string, updating bool) error {
+func addLockEntry(lockFilePath string, uri string, allowUpdate bool) error {
 	lockFile, err := readLockFile(lockFilePath)
 	if err != nil {
 		return err
 	}
-	updatedLockFile, err := addLockEntryPure(lockFile, uri, updating)
+	updatedLockFile, err := addLockEntryPure(lockFile, uri, allowUpdate)
 	if err != nil {
 		return err
 	}
@@ -168,12 +169,12 @@ func addLockEntry(lockFilePath string, uri string, updating bool) error {
 	return writeLockFile(lockFilePath, updatedLockFile)
 }
 
-func addLockEntryPure(lockFile *LockFile, uri string, updating bool) (*LockFile, error) {
+func addLockEntryPure(lockFile *LockFile, uri string, allowUpdate bool) (*LockFile, error) {
 	// Check if URI already exists
 	index := -1
 	for i, lock := range lockFile.Locks {
 		if lock.URI == uri {
-			if !updating {
+			if !allowUpdate {
 				return nil, fmt.Errorf("URI %s already exists in lock file", uri)
 			} else {
 				index = i
@@ -194,14 +195,14 @@ func addLockEntryPure(lockFile *LockFile, uri string, updating bool) (*LockFile,
 		HashVersion:   "h1",
 		HashOfContent: sha384Hash,
 	}
-	if updating && index != -1 {
+	if allowUpdate && index != -1 {
 		oldHash := lockFile.Locks[index].HashOfContent
 		if oldHash == sha384Hash {
 			// No change in hash, skip update
-			fmt.Fprintf(os.Stderr, "No change in content for %s, skipping update\n", uri)
+			log.Printf("No change in content for %s, skipping update\n", uri)
 			return lockFile, nil
 		} else {
-			fmt.Fprintf(os.Stderr, "Content changed for %s, updating hash\n", uri)
+			log.Printf("Content changed for %s, updating hash\n", uri)
 		}
 		lockFile.Locks[index] = newLock
 	} else {
