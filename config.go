@@ -29,13 +29,11 @@ type LockFile struct {
 }
 
 type Lock struct {
-	URI  string     `toml:"uri"`
-	Lock LockDetail `toml:"lock"`
-}
+	URI string `toml:"uri"`
 
-type LockDetail struct {
-	Include []string `toml:"include,omitempty"`
-	SHA384  string   `toml:"sha384,omitempty"`
+	// h1: SHA-384
+	HashVersion   string `toml:"hash_version,omitempty"`
+	HashOfContent string `toml:"hash_of_content,omitempty"`
 }
 
 type Ignore struct {
@@ -114,6 +112,7 @@ func writeLockFile(lockFilePath string, lockFile *LockFile) error {
 	}
 	defer f.Close()
 	encoder := toml.NewEncoder(f)
+	encoder.Indent = ""
 	return encoder.Encode(lockFile)
 }
 
@@ -127,26 +126,27 @@ func fetchURLAndComputeSHA384(url string) (string, error) {
 		return "", err
 	}
 	req.Header.Set("User-Agent", "link-checker from https://github.com/koba-e964/link-checker")
-	
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("HTTP request failed with status code: %d", resp.StatusCode)
 	}
-	
+
 	// Limit response body to 100MB to prevent memory exhaustion
 	limitedBody := io.LimitReader(resp.Body, 100*1024*1024)
-	
+
 	// Compute SHA384 hash
+	// TODO: separate hashing logic into another file
 	hasher := sha512.New384()
 	if _, err := io.Copy(hasher, limitedBody); err != nil {
 		return "", err
 	}
-	
+
 	hashBytes := hasher.Sum(nil)
 	return hex.EncodeToString(hashBytes), nil
 }
@@ -156,28 +156,27 @@ func addLockEntry(lockFilePath string, uri string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Check if URI already exists
 	for _, lock := range lockFile.Locks {
 		if lock.URI == uri {
 			return fmt.Errorf("URI %s already exists in lock file", uri)
 		}
 	}
-	
+
 	// Fetch URL and compute SHA384 hash
 	sha384Hash, err := fetchURLAndComputeSHA384(uri)
 	if err != nil {
 		return fmt.Errorf("failed to fetch URL and compute hash: %w", err)
 	}
-	
+
 	// Add new lock entry with computed hash
 	newLock := Lock{
-		URI: uri,
-		Lock: LockDetail{
-			SHA384: sha384Hash,
-		},
+		URI:           uri,
+		HashVersion:   "h1",
+		HashOfContent: sha384Hash,
 	}
 	lockFile.Locks = append(lockFile.Locks, newLock)
-	
+
 	return writeLockFile(lockFilePath, lockFile)
 }
