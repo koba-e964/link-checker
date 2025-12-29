@@ -1,2 +1,1 @@
-Updating old hashes
 Add option -f

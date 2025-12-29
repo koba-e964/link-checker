@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -118,6 +120,8 @@ func writeLockFile(lockFilePath string, lockFile *LockFile) error {
 
 // fetchURLAndComputeSHA384 fetches the content of a URL and computes its SHA384 hash
 func fetchURLAndComputeSHA384(url string) (string, error) {
+	// TODO: move to http_accessor.go
+	// TODO: add a function to perform http.NewRequest("GET", ...) to parameters for easy testing
 	client := http.Client{
 		Timeout: 30 * time.Second,
 	}
@@ -151,23 +155,37 @@ func fetchURLAndComputeSHA384(url string) (string, error) {
 	return hex.EncodeToString(hashBytes), nil
 }
 
-func addLockEntry(lockFilePath string, uri string) error {
+func addLockEntry(lockFilePath string, uri string, updating bool) error {
 	lockFile, err := readLockFile(lockFilePath)
 	if err != nil {
 		return err
 	}
+	updatedLockFile, err := addLockEntryPure(lockFile, uri, updating)
+	if err != nil {
+		return err
+	}
 
+	return writeLockFile(lockFilePath, updatedLockFile)
+}
+
+func addLockEntryPure(lockFile *LockFile, uri string, updating bool) (*LockFile, error) {
 	// Check if URI already exists
-	for _, lock := range lockFile.Locks {
+	index := -1
+	for i, lock := range lockFile.Locks {
 		if lock.URI == uri {
-			return fmt.Errorf("URI %s already exists in lock file", uri)
+			if !updating {
+				return nil, fmt.Errorf("URI %s already exists in lock file", uri)
+			} else {
+				index = i
+				break
+			}
 		}
 	}
 
 	// Fetch URL and compute SHA384 hash
 	sha384Hash, err := fetchURLAndComputeSHA384(uri)
 	if err != nil {
-		return fmt.Errorf("failed to fetch URL and compute hash: %w", err)
+		return nil, fmt.Errorf("failed to fetch URL and compute hash: %w", err)
 	}
 
 	// Add new lock entry with computed hash
@@ -176,7 +194,21 @@ func addLockEntry(lockFilePath string, uri string) error {
 		HashVersion:   "h1",
 		HashOfContent: sha384Hash,
 	}
-	lockFile.Locks = append(lockFile.Locks, newLock)
-
-	return writeLockFile(lockFilePath, lockFile)
+	if updating && index != -1 {
+		oldHash := lockFile.Locks[index].HashOfContent
+		if oldHash == sha384Hash {
+			// No change in hash, skip update
+			fmt.Fprintf(os.Stderr, "No change in content for %s, skipping update\n", uri)
+			return lockFile, nil
+		} else {
+			fmt.Fprintf(os.Stderr, "Content changed for %s, updating hash\n", uri)
+		}
+		lockFile.Locks[index] = newLock
+	} else {
+		lockFile.Locks = append(lockFile.Locks, newLock)
+	}
+	slices.SortFunc(lockFile.Locks, func(a, b Lock) int {
+		return strings.Compare(a.URI, b.URI)
+	})
+	return lockFile, nil
 }

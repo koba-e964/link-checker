@@ -141,7 +141,7 @@ func main() {
 		}
 		hasError := false
 		for _, url := range os.Args[2:] {
-			if err := addLockEntry(lockFilePath, url); err != nil {
+			if err := addLockEntry(lockFilePath, url, false); err != nil {
 				log.Printf("Error adding lock entry: %v\n", err)
 				hasError = true
 			} else {
